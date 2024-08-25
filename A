@@ -1,70 +1,899 @@
-script_key="evFVJygmuzBOMwUUiLiznAnhksrKaCNV"
-
-_G.polarsblade = {
-    client = {
+-- grimace autofarm
+_G.configuration = {
+    behavior = {
         fps = 15,
         rendering = true,
+        optimize = true,
         gui = true,
     },
-    items = {
+    cash = {
+        pickup = 0.8,
+        distancepickup = 0.25,
+    },
+    farming = {
+        shoe = true,
+        hospital = true,
+        spawnedcash = {
+            toggle = true,
+            tweenspeed = 1,
+            finishdelay = 1,
+        },
+    },
+    weapon = {
+        defaultmoveset = false,
+        boxingmoveset = true,
+    },
+    other = {
         mask = true,
         unjail = true,
     },
-    server = {
-        handlekicks = false,
-        serverhoponknock = false,
-        serverhoponnoregisters = false,
-        
-        otheraccounts = {
-            switch = true,
-            ids = {
-        7239506305,
-        7239121469,
-        7239514345,
-        7239502073,
-        7239508408,
-        7239185474,
-        7239506522,
-        7239518914,
-        7239515999,
-        7239511964,
-        7239516536,
-        7239512083,
-        7239518656,
-        7239524315,
-        7239540424,
-        7239533611,
-        7239543428,
-        7239523894,
-        7239526331,
-        7239357484,
-        7239534726,
-        7239547480,
-        7239589842,
-        7239591794,
-        7239603017,
-        7239601065,
-        7239592373,
-        7239609511,
-        7239592434,
-        7239616883,
-        7238863052,
-        7239605161,
-        7239600288,
-        7239619975,
-        7239619029,
-        7239613158,
-            }
-        }
-    },
-    otherfarmers = {
-        killfarmers = true,
-        jumpatms = false,
+    serverhop = {
+        onknocked = false,
+        onjoined = false,
+        joinedids = {
+
+        },
+        onloaded = true,
+        loadedids = {
+            7239506305,
+            7239121469,
+            7239514345,
+            7239502073,
+            7239508408,
+            7239185474,
+            7239506522,
+            7239518914,
+            7239515999,
+            7239511964,
+            7239516536,
+            7239512083,
+            7239518656,
+            7239524315,
+            7239540424,
+            7239533611,
+            7239543428,
+            7239523894,
+            7239526331,
+            7239357484,
+            7239534726,
+            7239547480,
+            7239589842,
+            7239591794,
+            7239603017,
+            7239601065,
+            7239592373,
+            7239609511,
+            7239592434,
+            7239616883,
+            7238863052,
+            7239605161,
+            7239600288,
+            7239619975,
+            7239619029,
+            7239613158,
+        },
     },
     webhook = {
-        switch = true,
-        link = "https://discord.com/api/webhooks/1277079535057109137/_5Olw3rtMa60TF1BNDq1XqTScni5kB3-Fmezm63mCJZh32gioVwhUe-7Qs1_AYbtO8CB",
+        link = "",
+        interval = 60,
     },
 }
 
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/dcba12602570f5a1c36c86252d5f78c9.lua"))()
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game.Players.LocalPlayer and game.Players.LocalPlayer.Character
+
+-- services
+local players = game:GetService("Players")
+local replicatedstorage = game:GetService("ReplicatedStorage")
+local virtualuser = game:GetService("VirtualUser")
+local tweenservice = game:GetService("TweenService")
+local httpservice = game:GetService("HttpService")
+local teleportservice = game:GetService("TeleportService")
+local lighting = game:GetService("Lighting")
+local runservice = game:GetService("RunService")
+local coregui = game:GetService("CoreGui")
+
+-- instances
+local localplayer = players.LocalPlayer
+local datafolder = localplayer:WaitForChild("DataFolder")
+local currency = datafolder:WaitForChild("Currency")
+local information = datafolder:WaitForChild("Information")
+local wanted = information:WaitForChild("Wanted")
+local remote = replicatedstorage:WaitForChild("MainEvent")
+
+local cashregisters = workspace:WaitForChild("Cashiers")
+local ignored = workspace:WaitForChild("Ignored")
+local shop = ignored:WaitForChild("Shop")
+local drop = ignored:WaitForChild("Drop")
+local status = "Farming"
+
+-- client
+local function formatnumber(n)
+    n = tostring(n)
+    return n:reverse():gsub("...","%0,",math.floor((#n-1)/3)):reverse()
+end
+
+if _G.configuration.behavior.gui then
+    -- gui
+    local gui = Instance.new("ScreenGui")
+    gui.IgnoreGuiInset = true
+    gui.ResetOnSpawn = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Name = "Gui"
+    gui.Parent = coregui
+
+    local menu = Instance.new("Frame")
+    menu.AnchorPoint = Vector2.new(0.5, 0.5)
+    menu.BackgroundColor3 = Color3.new(0.027451, 0.027451, 0.027451)
+    menu.BorderColor3 = Color3.new(0, 0, 0)
+    menu.BorderSizePixel = 0
+    menu.Position = UDim2.new(0.5, 0, 0.5, 0)
+    menu.Size = UDim2.new(1, 0, 1, 0)
+    menu.Visible = true
+    menu.Name = "Menu"
+    menu.Parent = gui
+
+    local discord_label = Instance.new("TextLabel")
+    discord_label.Font = Enum.Font.Gotham
+    discord_label.Text = "discord.gg/quickcash"
+    discord_label.TextColor3 = Color3.new(1, 1, 1)
+    discord_label.TextScaled = true
+    discord_label.TextSize = 14
+    discord_label.TextTransparency = 0.8999999761581421
+    discord_label.TextWrapped = true
+    discord_label.AnchorPoint = Vector2.new(0.5, 0.5)
+    discord_label.BackgroundColor3 = Color3.new(1, 1, 1)
+    discord_label.BackgroundTransparency = 1
+    discord_label.BorderColor3 = Color3.new(0, 0, 0)
+    discord_label.BorderSizePixel = 0
+    discord_label.Position = UDim2.new(0.499714613, 0, 0.74306798, 0)
+    discord_label.Size = UDim2.new(0.124069482, 0, 0.0388349518, 0)
+    discord_label.Visible = true
+    discord_label.Name = "DiscordLabel"
+    discord_label.Parent = menu
+
+    local uitext_size_constraint = Instance.new("UITextSizeConstraint")
+    uitext_size_constraint.MaxTextSize = 14
+    uitext_size_constraint.Parent = discord_label
+
+    local container = Instance.new("Frame")
+    container.AnchorPoint = Vector2.new(0.5, 0.5)
+    container.BackgroundColor3 = Color3.new(0.0627451, 0.0627451, 0.0627451)
+    container.BorderColor3 = Color3.new(0, 0, 0)
+    container.BorderSizePixel = 0
+    container.Position = UDim2.new(0.499714613, 0, 0.498731285, 0)
+    container.Size = UDim2.new(0.233250618, 0, 0.320388347, 0)
+    container.Visible = true
+    container.Name = "Container"
+    container.Parent = menu
+
+    local uicorner = Instance.new("UICorner")
+    uicorner.Parent = container
+
+    local uistroke = Instance.new("UIStroke")
+    uistroke.Color = Color3.new(0.14902, 0.14902, 0.14902)
+    uistroke.Parent = container
+
+    local uilist_layout = Instance.new("UIListLayout")
+    uilist_layout.Padding = UDim.new(0.10000000149011612, 0)
+    uilist_layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    uilist_layout.SortOrder = Enum.SortOrder.LayoutOrder
+    uilist_layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    uilist_layout.Parent = container
+
+    local title = Instance.new("TextLabel")
+    title.Font = Enum.Font.Gotham
+    title.Text = "Polars Autofarm"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextScaled = true
+    title.TextSize = 14
+    title.TextWrapped = true
+    title.AnchorPoint = Vector2.new(0.5, 0.5)
+    title.BackgroundColor3 = Color3.new(0.027451, 0.027451, 0.027451)
+    title.BorderColor3 = Color3.new(0, 0, 0)
+    title.BorderSizePixel = 0
+    title.Position = UDim2.new(0.5, 0, 0.231298313, 0)
+    title.Size = UDim2.new(0.935239077, 0, 0.146508187, 0)
+    title.Visible = true
+    title.Name = "Title"
+    title.Parent = container
+
+    local uicorner_2 = Instance.new("UICorner")
+    uicorner_2.Parent = title
+
+    local uistroke_2 = Instance.new("UIStroke")
+    uistroke_2.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    uistroke_2.Color = Color3.new(0.14902, 0.14902, 0.14902)
+    uistroke_2.Parent = title
+
+    local uitext_size_constraint_2 = Instance.new("UITextSizeConstraint")
+    uitext_size_constraint_2.MaxTextSize = 14
+    uitext_size_constraint_2.Parent = title
+
+    local cash_label = Instance.new("TextLabel")
+    cash_label.Font = Enum.Font.Gotham
+    cash_label.TextColor3 = Color3.new(1, 1, 1)
+    cash_label.TextScaled = true
+    cash_label.TextSize = 14
+    cash_label.TextWrapped = true
+    cash_label.AnchorPoint = Vector2.new(0.5, 0.5)
+    cash_label.BackgroundColor3 = Color3.new(1, 1, 1)
+    cash_label.BackgroundTransparency = 1
+    cash_label.BorderColor3 = Color3.new(0, 0, 0)
+    cash_label.BorderSizePixel = 0
+    cash_label.Position = UDim2.new(0.5, 0, 0.530454278, 0)
+    cash_label.Size = UDim2.new(0.935239077, 0, 0.146508187, 0)
+    cash_label.Visible = true
+    cash_label.Name = "CashLabel"
+    cash_label.Parent = container
+
+    task.spawn(function()
+        while task.wait() do
+            pcall(function()
+                cash_label.Text = "Cash: $"..formatnumber(currency.Value)
+            end)
+        end
+    end)
+
+    local uitext_size_constraint_3 = Instance.new("UITextSizeConstraint")
+    uitext_size_constraint_3.MaxTextSize = 14
+    uitext_size_constraint_3.Parent = cash_label
+
+    local wanted_label = Instance.new("TextLabel")
+    wanted_label.Font = Enum.Font.Gotham
+    wanted_label.TextColor3 = Color3.new(1, 1, 1)
+    wanted_label.TextScaled = true
+    wanted_label.TextSize = 14
+    wanted_label.TextWrapped = true
+    wanted_label.AnchorPoint = Vector2.new(0.5, 0.5)
+    wanted_label.BackgroundColor3 = Color3.new(1, 1, 1)
+    wanted_label.BackgroundTransparency = 1
+    wanted_label.BorderColor3 = Color3.new(0, 0, 0)
+    wanted_label.BorderSizePixel = 0
+    wanted_label.Position = UDim2.new(0.5, 0, 0.829610348, 0)
+    wanted_label.Size = UDim2.new(0.935239077, 0, 0.146508113, 0)
+    wanted_label.Visible = true
+    wanted_label.Name = "WantedLabel"
+    wanted_label.Parent = container
+
+    task.spawn(function()
+        while task.wait() do
+            pcall(function()
+                wanted_label.Text = "Wanted: "..formatnumber(wanted.Value)
+            end)
+        end
+    end)
+
+    local uitext_size_constraint_4 = Instance.new("UITextSizeConstraint")
+    uitext_size_constraint_4.MaxTextSize = 14
+    uitext_size_constraint_4.Parent = wanted_label
+
+    local status_label = Instance.new("TextLabel")
+    status_label.Font = Enum.Font.Gotham
+    status_label.TextColor3 = Color3.new(1, 1, 1)
+    status_label.TextScaled = true
+    status_label.TextSize = 14
+    status_label.TextWrapped = true
+    status_label.AnchorPoint = Vector2.new(0.5, 0.5)
+    status_label.BackgroundColor3 = Color3.new(1, 1, 1)
+    status_label.BackgroundTransparency = 1
+    status_label.BorderColor3 = Color3.new(0, 0, 0)
+    status_label.BorderSizePixel = 0
+    status_label.Position = UDim2.new(0.5, 0, 1.12876642, 0)
+    status_label.Size = UDim2.new(0.935239077, 0, 0.146507964, 0)
+    status_label.Visible = true
+    status_label.Name = "StatusLabel"
+    status_label.Parent = container
+
+    task.spawn(function()
+        while task.wait() do
+            pcall(function()
+                status_label.Text = "Status: "..status
+            end)
+        end
+    end)
+
+    local uitext_size_constraint_5 = Instance.new("UITextSizeConstraint")
+    uitext_size_constraint_5.MaxTextSize = 14
+    uitext_size_constraint_5.Parent = status_label
+end
+
+for _, part in ipairs(workspace:GetDescendants()) do
+    if part:IsA("Seat") then
+        part:Destroy()
+    end
+end
+
+if _G.configuration.behavior.optimize then
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Transparency = 1
+        end
+    
+        if part:IsA("Seat") then
+            part:Destroy()
+        end
+    
+        if part:IsA("Decal") then
+            part:Destroy()
+        end
+
+        if part:IsA("ParticleEmitter") then
+            part:Destroy()
+        end
+    end
+
+    for _, effect in ipairs(lighting:GetChildren()) do
+        effect:Destroy()
+    end
+
+    lighting.GlobalShadows = false
+    lighting.FogEnd = math.huge
+end
+
+UserSettings().GameSettings.MasterVolume = 0
+settings().Rendering.QualityLevel = 1
+setfpscap(_G.configuration.behavior.fps)
+runservice:Set3dRenderingEnabled(_G.configuration.behavior.rendering)
+
+localplayer.Idled:Connect(function()
+    virtualuser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    wait(1)
+    virtualuser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+end)
+
+local success, response = pcall(function()
+    setfflag("DFFlagDisableDPIScale", "false")
+    setfflag("DFFlagDebugPauseVoxelizer", "true")
+    setfflag("DFFlagDebugRenderForceTechnologyVoxel", "true")
+    setfflag("FFlagDebugGraphicsDisableDirect3D11", "false")
+    setfflag("FFlagDebugGraphicsPreferD3D11", "false")
+    setfflag("FFlagDebugGraphicsPreferD3D11FL10", "true")
+    setfflag("FFlagGraphicsEnableD3D10Compute", "false")
+    setfflag("DFIntCSGLevelOfDetailSwitchingDistance", 0)
+    setfflag("DFIntCSGLevelOfDetailSwitchingDistanceL12", 0)
+    setfflag("DFIntCSGLevelOfDetailSwitchingDistanceL23", 0)
+    setfflag("DFIntCSGLevelOfDetailSwitchingDistanceL34", 0)
+    setfflag("FIntRenderLocalLightUpdatesMax", 0)
+    setfflag("FIntRenderLocalLightUpdatesMin", 0)
+    setfflag("FFlagDebugSkyGray", 0)
+    setfflag("DFIntDebugFRMQualityLevelOverride", 0)
+    setfflag("FIntRenderShadowIntensity", 0)
+    setfflag("FIntDebugForceMSAASamples", 0)
+end)
+
+if success then
+    print("SUCCESSFULLY CHANGED FFLAGS")
+else
+    print("FAILED TO CHANGE FFLAGS")
+end
+
+-- function
+local function serverhop()
+    local placeid = game.PlaceId
+    local servers = httpservice:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/'.. placeid.. '/servers/Public?sortOrder=Asc&limit=100'))
+    local openservers = {}
+    for _, v in pairs(servers.data) do
+        if v.playing ~= v.maxPlayers and v.playing >= 2 and v.playerIds ~= localplayer.UserId then
+            table.insert(openservers, v)
+        end
+    end
+
+    teleportservice:TeleportToPlaceInstance(placeid, openservers[math.random(1, #openservers)].id)
+end
+
+if _G.configuration.serverhop.onjoined then
+    players.PlayerAdded:Connect(function(player)
+        if table.find(_G.configuration.serverhop.joinedids, player.UserId) and player ~= localplayer then
+            serverhop()
+        end
+    end)
+end
+
+if _G.configuration.serverhop.onloaded then
+    for _, player in ipairs(players:GetPlayers()) do
+        if player ~= localplayer and table.find(_G.configuration.serverhop.loadedids, player.UserId) then
+            serverhop()
+        end
+    end
+end
+
+coregui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+    if child.Name == 'ErrorPrompt' and child:FindFirstChild('MessageArea') and child.MessageArea:FindFirstChild('ErrorFrame') then
+        serverhop()
+    end
+end)
+
+local function button(name)
+    for _, button in ipairs(shop:GetChildren()) do
+        if button:FindFirstChild("Head") and string.match(button.Name, name) then
+            return button
+        end
+    end
+end
+
+function fomat(int)
+	return string.format("%02i", int)
+end
+
+function hms(seconds)
+	local minutes = (seconds - seconds%60)/60
+	seconds = seconds - minutes*60
+	local hours = (minutes - minutes%60)/60
+	minutes = minutes - hours*60
+	return fomat(hours)..":"..fomat(minutes)..":"..fomat(seconds)
+end
+
+local function mask(character)
+    status = "Purchasing Mask"
+    local maskbutton = button("Mask")
+    local price = tonumber(string.split(string.gsub(maskbutton.Name, "%D+", ""), " ")[1])
+    local bodyeffects = character:WaitForChild("BodyEffects")
+    
+    if tonumber(currency.Value) < price then
+        status = "Collecting Cash To Purchase Mask"
+        repeat
+            task.wait()
+
+            for _, shoe in ipairs(drop:GetChildren()) do
+                if shoe.Name == "MeshPart" then
+                    local timeout = tick()
+                    repeat
+                        task.wait()
+
+                        character.HumanoidRootPart.CFrame = CFrame.new(shoe.Position - Vector3.new(0, 11, 0))
+                        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                        if shoe:FindFirstChildOfClass("ClickDetector") then
+                            fireclickdetector(shoe:FindFirstChildOfClass("ClickDetector"))
+                        end
+                    until not shoe or not shoe:FindFirstChildOfClass("ClickDetector") or tick() - timeout >= 1
+
+                    if bodyeffects:FindFirstChild("ShoesCollect").Value ~= 0 then
+                        local npc = ignored["Clean the shoes on the floor and come to me for cash"]
+
+                        repeat
+                            task.wait()
+
+                            character.HumanoidRootPart.CFrame = CFrame.new(npc.HumanoidRootPart.Position - Vector3.new(0, 11, 0))
+                            character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                            fireclickdetector(npc:FindFirstChildOfClass("ClickDetector"))
+                        until bodyeffects:FindFirstChild("ShoesCollect").Value == 0
+                    end
+                end
+
+                character.HumanoidRootPart.CFrame = CFrame.new(0, -1000, 0)
+                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            end
+        until tonumber(currency.Value) > price
+        status = "Purchasing Mask"
+    end
+
+    repeat
+        task.wait()
+
+        character.HumanoidRootPart.CFrame = CFrame.new(maskbutton.Head.Position - Vector3.new(0, 8, 0))
+        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+        fireclickdetector(maskbutton:FindFirstChildOfClass("ClickDetector"))
+    until localplayer.Backpack:FindFirstChild("[Mask]") or character:FindFirstChild("[Mask]")
+
+    if not character:FindFirstChild("[Mask]") then
+        repeat
+            task.wait()
+
+            character.HumanoidRootPart.CFrame = CFrame.new(maskbutton.Head.Position - Vector3.new(0, 8, 0))
+            character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("[Mask]"))
+        until character:FindFirstChild("[Mask]")
+    end
+
+    character:FindFirstChild("[Mask]"):Activate()
+
+    status = "Waiting"
+end
+
+local function unjail(character)
+    status = "Unjailing"
+
+    local keybutton = button("Key")
+
+    repeat
+        task.wait()
+
+        character.HumanoidRootPart.CFrame = CFrame.new(keybutton.Head.Position - Vector3.new(0, 8, 0))
+        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+        fireclickdetector(keybutton:FindFirstChildOfClass("ClickDetector"))
+    until localplayer.Backpack:FindFirstChild("[Key]") or character:FindFirstChild("[Key]")
+
+    if not character:FindFirstChild("[Key]") then
+        repeat
+            task.wait()
+
+            character.HumanoidRootPart.CFrame = CFrame.new(keybutton.Head.Position - Vector3.new(0, 8, 0))
+            character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+            character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("[Key]"))
+        until character:FindFirstChild("[Key]")
+    end
+
+    repeat
+        task.wait()
+
+        character.HumanoidRootPart.CFrame = CFrame.new(keybutton.Head.Position - Vector3.new(0, 8, 0))
+        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        
+        pcall(function()
+            if character:FindFirstChild("[Key]") then
+                character:FindFirstChild("[Key]"):Activate()
+            end
+        end)
+    until character:WaitForChild("BodyEffects"):WaitForChild("Cuff").Value == false
+
+    status = "Waiting"
+end
+
+local function getcashregister()
+    for _, register in ipairs(cashregisters:GetChildren()) do
+        if register.Humanoid.Health > 0 then
+            return register
+        end
+    end
+end
+
+local function attach(character)
+    status = "Waiting For ForceField"
+    repeat task.wait() until character:FindFirstChildOfClass("ForceField")
+    character:WaitForChild("FULLY_LOADED_CHAR")
+
+    local bodyeffects = character:WaitForChild("BodyEffects")
+
+    if _G.configuration.other.unjail == true and bodyeffects:WaitForChild("Cuff").Value == true then
+        unjail(character)
+    end
+    
+    if _G.configuration.other.mask == true then
+        mask(character)
+    end
+
+    while task.wait() do
+        local success, response = pcall(function()
+            local cashregister = getcashregister()
+
+            if cashregister and bodyeffects["K.O"].Value == false and bodyeffects["Dead"].Value == false then
+                status = "Farming Register"
+                repeat
+                    task.wait()
+
+                    if _G.configuration.weapon.defaultmoveset == true and _G.configuration.weapon.boxingmoveset == false then
+                        if localplayer.Backpack:FindFirstChild("Combat") then
+                            character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("Combat"))
+                        end
+                    end
+
+                    if _G.configuration.weapon.boxingmoveset == true and _G.configuration.weapon.defaultmoveset == false then
+                        if not information:FindFirstChild("FightingStyle") then
+                            local movesetbutton = shop["[Default Moveset] - $0"]
+                            
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(movesetbutton.Head.Position - Vector3.new(0, 8, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                fireclickdetector(movesetbutton:FindFirstChildOfClass("ClickDetector"))
+                            until information:FindFirstChild("FightingStyle")
+                        end
+
+                        if not information:FindFirstChild("BoxingValue") then
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(-261.084, 24.2121, -1138.88)
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                if not character:FindFirstChild("Combat") and localplayer.Backpack:FindFirstChild("Combat") then
+                                    character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("Combat"))
+                                elseif character:FindFirstChild("Combat") then
+                                    character:FindFirstChild("Combat"):Activate()
+                                    character:FindFirstChild("Combat"):Deactivate()
+                                end
+                            until information:FindFirstChild("BoxingValue")
+                        end
+
+                        if tonumber(information:FindFirstChild("BoxingValue").Value) < 2500 then
+                            status = "Boxing"
+
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(-261.084, 24.2121, -1138.88)
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                if not character:FindFirstChild("Combat") and localplayer.Backpack:FindFirstChild("Combat") then
+                                    character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("Combat"))
+                                elseif character:FindFirstChild("Combat") then
+                                    character:FindFirstChild("Combat"):Activate()
+                                    character:FindFirstChild("Combat"):Deactivate()
+                                end
+                            until tonumber(information:FindFirstChild("BoxingValue").Value) >= 2500
+
+                            status = "Farming"
+                        end
+
+                        if information:FindFirstChild("FightingStyle").Value == "Default" and tonumber(information:FindFirstChild("BoxingValue").Value) >= 2500 then
+                            local movesetbutton = shop["Boxing Moveset (Require: Max Box Stat) - $0"]
+                            
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(movesetbutton.Head.Position - Vector3.new(0, 8, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                fireclickdetector(movesetbutton:FindFirstChildOfClass("ClickDetector"))
+                            until information:FindFirstChild("FightingStyle").Value ~= "Default"
+                        end
+
+                        if localplayer.Backpack:FindFirstChild("Combat") then
+                            character.Humanoid:EquipTool(localplayer.Backpack:FindFirstChild("Combat"))
+                        end
+                    end
+
+                    if character:FindFirstChild("Combat") then
+                        character:FindFirstChild("Combat"):Activate()
+                    end
+
+                    if bodyeffects.Attacking.Value == true then
+                        if (Vector3.new(-624.5984497070312, 22.850021362304688, -286.6582336425781) - cashregister.Open.Position).Magnitude <= 2 then
+                            character.HumanoidRootPart.CFrame = cashregister.Open.CFrame * CFrame.new(-3, 0, 0)
+                        elseif (Vector3.new(-627.5984497070312, 22.850021362304688, -286.6581726074219) - cashregister.Open.Position).Magnitude <= 2 then
+                            character.HumanoidRootPart.CFrame = cashregister.Open.CFrame * CFrame.new(3, 0, 0)
+                        else
+                            character.HumanoidRootPart.CFrame = cashregister.Open.CFrame
+                        end
+
+                        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                    else
+                        character.HumanoidRootPart.CFrame = cashregister.Open.CFrame * CFrame.new(0, -8, 0)
+                        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                    end
+                until cashregister.Humanoid.Health <= 0 or bodyeffects["K.O"].Value == true or bodyeffects.Dead.Value == true
+
+                if bodyeffects["K.O"].Value == true or bodyeffects.Dead.Value == true then
+                    if _G.configuration.serverhop.onknocked then
+                        serverhop()
+                    else
+                        character.Humanoid:UnequipTools()
+                        character.Humanoid:ChangeState(15)
+                    end
+
+                    return
+                end
+
+                for _, cash in ipairs(drop:GetChildren()) do
+                    if cash.Name == "MoneyDrop" then
+                        local timer = tick()
+
+                        if (cash.Position - character.HumanoidRootPart.Position).Magnitude <= 11 then
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(cash.Position - Vector3.new(0, 11, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                if tick() - timer >= _G.configuration.cash.pickup and cash:FindFirstChildOfClass("ClickDetector") then
+                                    timer = tick()
+                                    fireclickdetector(cash:FindFirstChildOfClass("ClickDetector"))
+                                end
+                            until not cash or not cash:FindFirstChildOfClass("ClickDetector")
+                        elseif (cash.Position - character.HumanoidRootPart.Position).Magnitude <= 25 then
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(cash.Position - Vector3.new(0, 11, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                if tick() - timer >= _G.configuration.cash.pickup + _G.configuration.cash.distancepickup and cash:FindFirstChildOfClass("ClickDetector") then
+                                    timer = tick()
+                                    fireclickdetector(cash:FindFirstChildOfClass("ClickDetector"))
+                                end
+                            until not cash or not cash:FindFirstChildOfClass("ClickDetector")
+                        end
+                    end
+                end
+            elseif bodyeffects["K.O"].Value == false and bodyeffects["Dead"].Value == false then
+                status = "Idle Waiting For Register"
+
+                if _G.configuration.farming.shoe then
+                    status = "Collecting Shoes"
+
+                    for _, shoe in ipairs(drop:GetChildren()) do
+                        if shoe.Name == "MeshPart" then
+                            local timeout = tick()
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(shoe.Position - Vector3.new(0, 11, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                if shoe:FindFirstChildOfClass("ClickDetector") then
+                                    fireclickdetector(shoe:FindFirstChildOfClass("ClickDetector"))
+                                end
+                            until not shoe or not shoe:FindFirstChildOfClass("ClickDetector") or tick() - timeout >= 1
+
+                            if bodyeffects:FindFirstChild("ShoesCollect").Value ~= 0 then
+                                local npc = ignored["Clean the shoes on the floor and come to me for cash"]
+
+                                repeat
+                                    task.wait()
+
+                                    character.HumanoidRootPart.CFrame = CFrame.new(npc.HumanoidRootPart.Position - Vector3.new(0, 11, 0))
+                                    character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                    fireclickdetector(npc:FindFirstChildOfClass("ClickDetector"))
+                                until bodyeffects:FindFirstChild("ShoesCollect").Value == 0
+                            end
+                        end
+                    end
+
+                    status = "Idle Waiting For Register"
+                end
+
+                if _G.configuration.farming.hospital then
+                    status = "Completing Hospital"
+
+                    local hospitaljob = ignored["HospitalJob"]
+                    if hospitaljob and hospitaljob:FindFirstChildOfClass("Model") then
+                        local npc = hospitaljob:FindFirstChildOfClass("Model")
+                        local button = nil
+
+                        if string.match(npc.Name, "Red") then
+                            button = hospitaljob.Red
+                        elseif string.match(npc.Name, "Blue") then
+                            button = hospitaljob.Blue
+                        elseif string.match(npc.Name, "Green") then
+                            button = hospitaljob.Green
+                        end
+
+                        if button then
+                            local timeout = tick()
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.CFrame = CFrame.new(button.Position - Vector3.new(0, 15, 0))
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                fireclickdetector(button:FindFirstChildOfClass("ClickDetector"))
+                            until bodyeffects.HospitalJob.Value == button.Name or tick() - timeout >= 1
+
+                            if bodyeffects.HospitalJob.Value == button.Name then
+                                timeout = tick()
+                                repeat
+                                    task.wait()
+
+                                    character.HumanoidRootPart.CFrame = CFrame.new(npc.HumanoidRootPart.Position - Vector3.new(0, 15, 0))
+                                    character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+                                    if npc:FindFirstChildOfClass("ClickDetector") then
+                                        fireclickdetector(npc:FindFirstChildOfClass("ClickDetector"))
+                                    end
+                                until not npc or npc.Name == "Thank You!" or tick() - timeout >= 1
+                            end
+                        end
+                    end
+
+                    status = "Idle Waiting For Register"
+                end
+
+                if _G.configuration.farming.spawnedcash.toggle then
+                    status = "Collecting Spawned Cash"
+
+                    for _, cash in ipairs(drop:GetChildren()) do
+                        if cash.Name == "MoneyDrop" then
+                            local complete = false
+                            local tween = tweenservice:Create(character.HumanoidRootPart, TweenInfo.new(_G.configuration.farming.spawnedcash.tweenspeed), {
+                                CFrame = CFrame.new(cash.Position - Vector3.new(0, 11, 0))
+                            })
+
+                            tween:Play()
+                            tween.Completed:Connect(function()
+                                complete = true
+                            end)
+
+                            repeat
+                                task.wait()
+
+                                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                            until complete 
+
+                            if complete then
+                                local timer = tick()
+                                if (cash.Position - character.HumanoidRootPart.Position).Magnitude <= 11 then
+                                    repeat
+                                        task.wait()
+        
+                                        character.HumanoidRootPart.CFrame = CFrame.new(cash.Position - Vector3.new(0, 11, 0))
+                                        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        
+                                        if tick() - timer >= _G.configuration.cash.pickup + _G.configuration.farming.spawnedcash.finishdelay and cash:FindFirstChildOfClass("ClickDetector") then
+                                            timer = tick()
+                                            fireclickdetector(cash:FindFirstChildOfClass("ClickDetector"))
+                                        end
+                                    until not cash or not cash:FindFirstChildOfClass("ClickDetector")
+                                elseif (cash.Position - character.HumanoidRootPart.Position).Magnitude <= 25 then
+                                    repeat
+                                        task.wait()
+        
+                                        character.HumanoidRootPart.CFrame = CFrame.new(cash.Position - Vector3.new(0, 11, 0))
+                                        character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        
+                                        if tick() - timer >= _G.configuration.cash.pickup + _G.configuration.cash.distancepickup + _G.configuration.farming.spawnedcash.finishdelay and cash:FindFirstChildOfClass("ClickDetector") then
+                                            timer = tick()
+                                            fireclickdetector(cash:FindFirstChildOfClass("ClickDetector"))
+                                        end
+                                    until not cash or not cash:FindFirstChildOfClass("ClickDetector")
+                                end
+                            end
+                        end
+                    end
+
+                    status = "Idle Waiting For Register"
+                end
+
+                character.HumanoidRootPart.CFrame = CFrame.new(0, -1000, 0)
+                character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            else
+                if bodyeffects["K.O"].Value == true or bodyeffects.Dead.Value == true then
+                    if _G.configuration.serverhop.onknocked then
+                        serverhop()
+                    else
+                        character.Humanoid:UnequipTools()
+                        character.Humanoid:ChangeState(15)
+                    end
+
+                    return
+                end
+            end
+        end)
+
+        if not success then
+            print(response)
+        end
+    end
+end
+
+
+localplayer.Character:WaitForChild("FULLY_LOADED_CHAR")
+if _G.connection then
+    _G.connection:Disconnect()
+    print("DISCONNECTED OLD CONNECTION") 
+end
+
+workspace.FallenPartsDestroyHeight = 0/0
+_G.connection = localplayer.CharacterAdded:Connect(attach)
+localplayer.Character.Humanoid:UnequipTools()
+localplayer.Character.Humanoid:ChangeState(15)
+
+status = "Waiting For Respawn"
+
+if _G.configuration.webhook.link ~= "" or _G.configuration.webhook.link ~= nil then
+    if _G.discordconnection then
+        _G.discordconnection = false
+    end
+
+    _G.discordconnection = true
+
+    local startingcash = currency.Value
+    local timeelapsed = tick()
+    while _G.discordconnection and task.wait() do
+        print("SENDING WEBHOOK")
+        local cashmade = formatnumber(tonumber(currency.Value) - tonumber(startingcash))
+        local formattedtime = hms(math.ceil(tick() - timeelapsed))
+        game:HttpGet("https://polarsblade.xyz/sendwebhook.php?Cash="..formatnumber(currency.Value).."&Gain="..cashmade.."&Username="..localplayer.Name.."&Id="..localplayer.UserId.."&Timestamp="..formattedtime.."&Webhook=".._G.configuration.webhook.link)
+
+        task.wait(_G.configuration.webhook.interval)
+    end
+end
