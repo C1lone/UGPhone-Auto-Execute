@@ -1,8 +1,8 @@
 -- grimace autofarm
 _G.configuration = {
     behavior = {
-        fps = 15,
-        rendering = true,
+        fps = 8,
+        rendering = false,
         optimize = true,
         gui = true,
     },
