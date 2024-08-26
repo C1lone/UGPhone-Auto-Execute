@@ -1,1 +1,2 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/DreadzHub2/DreadzHub-Scripts-FR/main/Loader"))()
+script_key="XcZPsUbEuWBHigXwRJKQPhiPTOcQuUcA";
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ACjLrqZ32sB2eJJ/mAEqKnw5fv6hCiE/main/JmxaNHGqG4grTBE"))()
